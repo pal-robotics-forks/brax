@@ -24,7 +24,7 @@ from typing import Any, Callable, Mapping, Optional, Tuple, Union
 from absl import logging
 from brax import base
 from brax import envs
-from braxviewer.brax.training import acting
+from braxviewer.brax.brax.training import acting
 from brax.training import gradients
 from brax.training import logger as metric_logger
 from brax.training import pmap
