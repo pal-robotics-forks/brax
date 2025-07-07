@@ -24,7 +24,7 @@ from typing import Any, Callable, Mapping, Optional, Tuple, Union
 from absl import logging
 from brax import base
 from brax import envs
-from brax.training import acting
+from braxviewer.brax.training import acting
 from brax.training import gradients
 from brax.training import logger as metric_logger
 from brax.training import pmap
@@ -42,6 +42,7 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
+from braxviewer.WebViewer import WebViewer
 
 InferenceParams = Tuple[running_statistics.NestedMeanStd, Params]
 Metrics = types.Metrics
@@ -68,7 +69,7 @@ def _strip_weak_type(tree):
   # avoid extra jit recompilations we strip all weak types from user input
   def f(leaf):
     leaf = jnp.asarray(leaf)
-    return jnp.astype(leaf, leaf.dtype)
+    return leaf.astype(leaf.dtype)
 
   return jax.tree_util.tree_map(f, tree)
 
@@ -242,6 +243,7 @@ def train(
     restore_params: Optional[Any] = None,
     restore_value_fn: bool = True,
     run_evals: bool = True,
+    viewer: Optional[WebViewer] = None,
 ):
   """PPO training.
 
@@ -504,7 +506,10 @@ def train(
           current_key,
           unroll_length,
           extra_fields=('truncation', 'episode_metrics', 'episode_done'),
+          viewer=viewer,
       )
+      # if viewer is not None:
+      #   jax.debug.callback(viewer.send_frame, current_state.pipeline_state)
       return (next_state, next_key), data
 
     (state, _), data = jax.lax.scan(

@@ -58,6 +58,7 @@ def generate_unroll(
     key: PRNGKey,
     unroll_length: int,
     extra_fields: Sequence[str] = (),
+    viewer=None,
 ) -> Tuple[State, Transition]:
   """Collect trajectories of given unroll_length."""
 
@@ -68,6 +69,10 @@ def generate_unroll(
     nstate, transition = actor_step(
         env, state, policy, current_key, extra_fields=extra_fields
     )
+    if viewer is not None:
+      #TODO unsampling here
+      #TODO use jit condition statement
+      jax.debug.callback(viewer.send_frame, state)
     return (nstate, next_key), transition
 
   (final_state, _), data = jax.lax.scan(
