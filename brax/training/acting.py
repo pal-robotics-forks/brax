@@ -15,7 +15,7 @@
 """Brax training acting functions."""
 
 import time
-from typing import Callable, Sequence, Tuple
+from typing import Callable, Sequence, Tuple, Optional
 
 from brax import envs
 from brax.training.types import Metrics
@@ -24,7 +24,10 @@ from brax.training.types import PolicyParams
 from brax.training.types import PRNGKey
 from brax.training.types import Transition
 import jax
+import jax.numpy as jnp
 import numpy as np
+
+from braxviewer.WebViewer import WebViewer
 
 State = envs.State
 Env = envs.Env
@@ -41,7 +44,7 @@ def actor_step(
   actions, policy_extras = policy(env_state.obs, key)
   nstate = env.step(env_state, actions)
   state_extras = {x: nstate.info[x] for x in extra_fields}
-  return nstate, Transition(  # pytype: disable=wrong-arg-types  # jax-ndarray
+  return nstate, Transition(
       observation=env_state.obs,
       action=actions,
       reward=nstate.reward,
@@ -58,7 +61,8 @@ def generate_unroll(
     key: PRNGKey,
     unroll_length: int,
     extra_fields: Sequence[str] = (),
-    viewer=None,
+    viewer: Optional[WebViewer] = None,
+    should_render: jax.Array = jnp.array(False, dtype=bool),
 ) -> Tuple[State, Transition]:
   """Collect trajectories of given unroll_length."""
 
@@ -69,10 +73,21 @@ def generate_unroll(
     nstate, transition = actor_step(
         env, state, policy, current_key, extra_fields=extra_fields
     )
+
     if viewer is not None:
-      #TODO unsampling here
-      #TODO use jit condition statement
-      jax.debug.callback(viewer.send_frame, state)
+      def _send_frame(operand_state):
+        jax.debug.callback(viewer.send_frame, operand_state)
+
+      def _do_nothing(operand_state):
+        pass
+      
+      jax.lax.cond(
+          should_render,
+          _send_frame,
+          _do_nothing,
+          operand=state
+      )
+
     return (nstate, next_key), transition
 
   (final_state, _), data = jax.lax.scan(
